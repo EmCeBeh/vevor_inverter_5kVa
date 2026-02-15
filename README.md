@@ -9,5 +9,5 @@ Vevor uses almost the same commands as [Voltronic and AXPERT KS&MKS&V](https://f
 Thus, i made my own.
 
 
-
+![image](https://github.com/EmCeBeh/vevor_inverter_5kVa/blob/main/HA%20Implementation.png)
 ![image](https://github.com/EmCeBeh/vevor_inverter_5kVa/blob/main/HA%20Overview.png)
