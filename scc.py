@@ -7,11 +7,11 @@ serial_lock = threading.Lock()
 
 
 debug = False
-ttyusbname = "/dev/ttyUSB0"
-broker = "192.168.178.100"
-port = 1883
-username = "mqttuser"
-password = "mqttpasswort"
+ttyusbname = "/dev/ttyUSB0"  # I made a udev rule to map the rs232 adapter to this device
+broker = "192.168.178.100"   # Put your HA IP here
+port = 1883                  # usally standard is fine
+username = "mqtt_user"       # Put your HA user name here
+password = "mqtt_passwort"   # Put your HA password here
 
 client = mqtt.Client()
 client.username_pw_set(username, password)
