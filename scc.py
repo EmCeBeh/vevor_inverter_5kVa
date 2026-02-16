@@ -7,11 +7,11 @@ serial_lock = threading.Lock()
 
 
 debug = False
-ttyusbname = "/dev/ttyUSB0"  # I made a udev rule to map the rs232 adapter to this device
-broker = "192.168.178.100"   # Put your HA IP here
-port = 1883                  # usally standard is fine
-username = "mqtt_user"       # Put your HA user name here
-password = "mqtt_passwort"   # Put your HA password here
+ttyusbname = "/dev/ttyUSB0"
+broker = "192.168.178.100"
+port = 1883
+username = "mqttuser"
+password = "mqttpasswort"
 
 client = mqtt.Client()
 client.username_pw_set(username, password)
@@ -188,8 +188,21 @@ SCC_mode_payload = {
     "payload_available": payload_available,
     "payload_not_available": payload_not_available
 }
-
 client.publish("homeassistant/select/scc_mode/config", json.dumps(SCC_mode_payload), retain=True)
+
+allowed_powersavingmodes = ["Energy saving", "Full power"]
+SCC_powersavingmode_payload = {
+    "name": "Power Saving Mode",
+    "unique_id": "scc_power_saving_mode",
+    "command_topic": "home/scc/power_saving_mode/set",
+    "state_topic": "home/scc/power_saving_mode",
+    "options": allowed_powersavingmodes,
+    "device": device_info,
+    "availability_topic": availability_topic,
+    "payload_available": payload_available,
+    "payload_not_available": payload_not_available
+}
+client.publish("homeassistant/select/power_saving_mode/config", json.dumps(SCC_powersavingmode_payload), retain=True)
 
 def on_message(client, userdata, msg):
     if debug:
@@ -215,10 +228,52 @@ def on_message(client, userdata, msg):
             mode = allowed_modes[res]
             client.publish("home/scc/mode", mode, retain=True)  # [14] would be max total
 
+    if msg.topic == "home/scc/power_saving_mode/set":
+        message = msg.payload.decode()
+        if message in allowed_powersavingmodes:
+            num = allowed_powersavingmodes.index(message)
+            if num == 0:
+                cmd = 'E'
+            else:
+                cmd = 'D'
+            ack = query(ser, "P"+cmd+"j")  # send command to inverter
+            print("Inverter ack:", ack)
+            res = query(ser, "QFLAG").decode().split('D')  # parameter query , splitting at D
+            print(res)
+            if 'j' in res[0]: #enabled
+                mode = allowed_powersavingmodes[0]
+            elif 'j' in res[1]:
+                mode = allowed_powersavingmodes[1]
+            else:
+                raise Exception("Invalid power saving mode")
+            print('mode:', mode)
+            client.publish("home/scc/power_saving_mode", mode, retain=True)  # [14] would be max total
+
 client.on_message = on_message
 client.subscribe("home/scc/ac/input/current/set")
 client.subscribe("home/scc/mode/set")
+client.subscribe("home/scc/power_saving_mode/set")
 client.loop_start()
+
+
+print("==========TEST=========")
+"""
+A Enable/Disable silence buzzer or open buzzer
+B Enable/Disable overload bypass function
+J Enable/Disable power saving
+
+K Enable/Disable LCD display escape to default page after 1min timeout
+U Enable/Disable overload restart
+V Enable/Disable over temperature restart
+
+X Enable/Disable backlight on
+Y Enable/Disable alarm on when primary source interrupt
+Z Enable/Disable fault code record
+"""
+#Ebjuvz Dakxy
+
+myres = query(ser, "QFLAG") # send command to inverter
+print("Res:", myres)
 
 
 while True:
