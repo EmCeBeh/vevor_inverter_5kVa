@@ -267,6 +267,7 @@ def on_message(client, userdata, msg):
                 raise Exception("Invalid power saving mode")
             print('mode:', mode)
             client.publish("home/scc/power_saving_mode", mode, retain=True)  # [14] would be max total
+    
     if msg.topic == "home/scc/battery/cv/set":
         message = msg.payload.decode()
         voltage = float(message)
@@ -282,6 +283,7 @@ client.on_message = on_message
 client.subscribe("home/scc/ac/input/current/set")
 client.subscribe("home/scc/mode/set")
 client.subscribe("home/scc/power_saving_mode/set")
+client.subscribe("home/scc/battery/cv/set")
 client.loop_start()
 
 
