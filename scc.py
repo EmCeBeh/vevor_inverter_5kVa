@@ -204,6 +204,25 @@ SCC_powersavingmode_payload = {
 }
 client.publish("homeassistant/select/power_saving_mode/config", json.dumps(SCC_powersavingmode_payload), retain=True)
 
+CV_payload = {
+    "name": "Battery Charge Voltage",
+    "unique_id": "scc_battery_charge_voltage",
+    "command_topic": "home/scc/battery/cv/set",
+    "state_topic": "home/scc/battery/cv",
+    "min": 49.0,
+    "max": 53.2,
+    "step": 0.1,
+    "unit_of_measurement": "V",
+    "mode": "box",
+    "device": device_info,
+    "availability_topic": availability_topic,
+    "payload_available": payload_available,
+    "payload_not_available": payload_not_available
+}
+client.publish(
+    "homeassistant/number/battery_charge_voltage/config", json.dumps(CV_payload), retain=True)
+
+
 def on_message(client, userdata, msg):
     if debug:
         print("Message received:", msg.topic, msg.payload)
@@ -248,6 +267,16 @@ def on_message(client, userdata, msg):
                 raise Exception("Invalid power saving mode")
             print('mode:', mode)
             client.publish("home/scc/power_saving_mode", mode, retain=True)  # [14] would be max total
+    if msg.topic == "home/scc/battery/cv/set":
+        message = msg.payload.decode()
+        voltage = float(message)
+        cmd = "PCVV" + "{:.1f}".format(voltage)
+        ack = query(ser, cmd)
+        print("Inverter ack:", ack)
+
+        res = float(query(ser, "QCV").decode())
+        client.publish("home/scc/battery/cv", "{:.1f}".format(res), retain=True
+        )
 
 client.on_message = on_message
 client.subscribe("home/scc/ac/input/current/set")
