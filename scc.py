@@ -38,6 +38,7 @@ sensors = [
     {"name": "Battery Voltage",        "state_topic": "home/scc/battery/voltage",         "unit": "V",  "device_class": "voltage", "unique_id": "scc_battery_voltage"},
     {"name": "Battery Charge Current", "state_topic": "home/scc/battery/charge/current",   "unit": "A",  "device_class": "current", "unique_id": "scc_battery_charge_current"},
     {"name": "Battery Charge Power",   "state_topic": "home/scc/battery/charge/power",    "unit": "W",  "device_class": "power",  "unique_id": "scc_battery_charge_power"},
+    {"name": "Battery Discharge Power","state_topic": "home/scc/battery/discharge/power",    "unit": "W",  "device_class": "power",  "unique_id": "scc_battery_discharge_power"},
     {"name": "Battery Capacity",       "state_topic": "home/scc/battery/capacity",        "unit": "%", "device_class": "battery", "unique_id": "scc_battery_capacity"},
     {"name": "Inverter Temperature",   "state_topic": "home/scc/inverter/temperature",   "unit": "°C", "device_class": "temperature", "unique_id": "scc_inverter_temperature"},
     {"name": "Battery PV Current",     "state_topic": "home/scc/battery/pv/current",      "unit": "A",  "device_class": "current", "unique_id": "scc_battery_pv_current"},
@@ -339,6 +340,7 @@ while True:
         client.publish("home/scc/battery/voltage", data[8])
         client.publish("home/scc/battery/charge/current", data[9])
         client.publish("home/scc/battery/charge/power", str(float(data[8])*float(data[9])))
+        client.publish("home/scc/battery/discharge/power", str(float(data[8])*float(data[15])))
         client.publish("home/scc/battery/capacity", data[10])
         client.publish("home/scc/inverter/temperature", data[11])
         client.publish("home/scc/battery/pv/current", data[12])
