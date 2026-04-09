@@ -7,7 +7,7 @@ serial_lock = threading.Lock()
 
 
 debug = False
-ttyusbname = "/dev/ttyUSB0"
+ttyusbname = "/dev/ttyUSB_inverter"
 ttyusbname_battery = "/dev/ttyUSB_battery"
 broker = "192.168.178.100"
 port = 1883
