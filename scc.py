@@ -8,6 +8,7 @@ serial_lock = threading.Lock()
 
 debug = False
 ttyusbname = "/dev/ttyUSB0"
+ttyusbname_battery = "/dev/ttyUSB_battery"
 broker = "192.168.178.100"
 port = 1883
 username = "mqttuser"
@@ -98,20 +99,11 @@ for binary_sensor in binary_sensors:
     "availability_topic": availability_topic,
     "payload_available": payload_available,
     "payload_not_available": payload_not_available,
-    "payload_off": "0",  # vevor reoprts 0s and 1s for status
+    "payload_off": "0",  # vevor reports 0s and 1s for status
     "payload_on": "1"
     }
     client.publish(config_topic, json.dumps(payload), retain=True)
 
-
-{
-  "name": "AC Frequency",
-  "state_topic": "home/scc/ac/output/frequency",
-  "command_topic": "home/scc/ac/set/frequency",
-  "unit_of_measurement": "Hz",
-  "unique_id": "scc_ac_output_frequency",
-  "device": { ... }
-}
 
 def crc16_xmodem(data: bytes):
     crc = 0
@@ -161,6 +153,9 @@ def query_all(ser):
 if not debug:
     ser = serial.Serial(ttyusbname, 2400, timeout=3)
     print(ser.is_open)
+
+    # Battery serial port — only used for RTS wake signal, no data exchange
+    akku = serial.Serial(ttyusbname_battery, 1200, timeout=3)
 
 alphabet = "abcdefghijklmnopqrstuvxyz" # might be useful as manual groups by letter. Note: sometimes letters missing in manual!
 
@@ -224,6 +219,46 @@ CV_payload = {
 client.publish(
     "homeassistant/number/battery_charge_voltage/config", json.dumps(CV_payload), retain=True)
 
+# ── Battery wake button (HA discovery) ───────────────────────────────────────
+battery_wake_payload = {
+    "name": "Battery Wake",
+    "unique_id": "scc_battery_wake",
+    "command_topic": "home/scc/battery/wake",
+    "device": device_info,
+    "availability_topic": availability_topic,
+    "payload_available": payload_available,
+    "payload_not_available": payload_not_available,
+    "payload_press": "WAKE",
+}
+client.publish("homeassistant/button/scc_battery_wake/config", json.dumps(battery_wake_payload), retain=True)
+
+
+def battery_wake():
+    """Toggle RTS low→high on the battery serial port to wake the battery BMS."""
+    print("Battery wake: pulling RTS low...")
+    akku.setRTS(False)
+    akku.setDTR(True)
+    sleep(2)
+    akku.setRTS(True)
+    print("Battery wake: RTS restored high.")
+
+
+def read_power_saving_mode():
+    """Read current power saving mode from inverter via QFLAG and publish."""
+    try:
+        res = query(ser, "QFLAG").decode().split('D')
+        if 'j' in res[0]:   # flag enabled
+            mode = allowed_powersavingmodes[0]  # "Energy saving"
+        elif 'j' in res[1]:  # flag disabled
+            mode = allowed_powersavingmodes[1]  # "Full power"
+        else:
+            print("Warning: could not determine power saving mode from QFLAG")
+            return
+        client.publish("home/scc/power_saving_mode", mode, retain=True)
+        print("Power saving mode:", mode)
+    except Exception as e:
+        print("Error reading power saving mode:", e)
+
 
 def on_message(client, userdata, msg):
     if debug:
@@ -259,17 +294,8 @@ def on_message(client, userdata, msg):
                 cmd = 'D'
             ack = query(ser, "P"+cmd+"j")  # send command to inverter
             print("Inverter ack:", ack)
-            res = query(ser, "QFLAG").decode().split('D')  # parameter query , splitting at D
-            print(res)
-            if 'j' in res[0]: #enabled
-                mode = allowed_powersavingmodes[0]
-            elif 'j' in res[1]:
-                mode = allowed_powersavingmodes[1]
-            else:
-                raise Exception("Invalid power saving mode")
-            print('mode:', mode)
-            client.publish("home/scc/power_saving_mode", mode, retain=True)  # [14] would be max total
-    
+            read_power_saving_mode()  # read back and publish
+
     if msg.topic == "home/scc/battery/cv/set":
         message = msg.payload.decode()
         voltage = float(message)
@@ -278,14 +304,18 @@ def on_message(client, userdata, msg):
         print("Inverter ack:", ack)
 
         res = float(query(ser, "QCV").decode())
-        client.publish("home/scc/battery/cv", "{:.1f}".format(res), retain=True
-        )
+        client.publish("home/scc/battery/cv", "{:.1f}".format(res), retain=True)
+
+    if msg.topic == "home/scc/battery/wake":
+        # Run in a separate thread so serial_lock on the inverter port isn't blocked
+        threading.Thread(target=battery_wake, daemon=True).start()
 
 client.on_message = on_message
 client.subscribe("home/scc/ac/input/current/set")
 client.subscribe("home/scc/mode/set")
 client.subscribe("home/scc/power_saving_mode/set")
 client.subscribe("home/scc/battery/cv/set")
+client.subscribe("home/scc/battery/wake")
 client.loop_start()
 
 
@@ -368,6 +398,9 @@ while True:
         client.publish("home/scc/state/switched_on",           b9)
         client.publish("home/scc/state/floating_mode",         b10)
 
+        # ── Read power saving mode from QFLAG each cycle ─────────────────────
+        read_power_saving_mode()
+
         if debug:
             print()
             print("Debug info:")
@@ -382,16 +415,3 @@ while True:
                     print(i, sensors[i-offs]['name'], "%s"%dat, sensors[i-offs]['unit'])
             print("==================================================")
     sleep(5)
-
-
-
-
-
-
-
-
-
-
-
-
-
