@@ -7,7 +7,7 @@ serial_lock = threading.Lock()
 
 
 debug = False
-ttyusbname = "/dev/ttyUSB0"
+ttyusbname = "/dev/ttyUSB_inverter"
 ttyusbname_battery = "/dev/ttyUSB_battery"
 broker = "192.168.178.100"
 port = 1883
@@ -104,6 +104,15 @@ for binary_sensor in binary_sensors:
     }
     client.publish(config_topic, json.dumps(payload), retain=True)
 
+
+{
+  "name": "AC Frequency",
+  "state_topic": "home/scc/ac/output/frequency",
+  "command_topic": "home/scc/ac/set/frequency",
+  "unit_of_measurement": "Hz",
+  "unique_id": "scc_ac_output_frequency",
+  "device": { ... }
+}
 
 def crc16_xmodem(data: bytes):
     crc = 0
