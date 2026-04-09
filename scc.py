@@ -7,7 +7,7 @@ serial_lock = threading.Lock()
 
 
 debug = False
-ttyusbname = "/dev/ttyUSB_inverter"
+ttyusbname = "/dev/ttyUSB0"
 ttyusbname_battery = "/dev/ttyUSB_battery"
 broker = "192.168.178.100"
 port = 1883
@@ -163,8 +163,8 @@ if not debug:
     ser = serial.Serial(ttyusbname, 2400, timeout=3)
     print(ser.is_open)
 
-    # Battery serial port — only used for RTS wake signal, no data exchange
-    akku = serial.Serial(ttyusbname_battery, 1200, timeout=3)
+# Battery serial port — always opened, independent of inverter availability
+akku = serial.Serial(ttyusbname_battery, 1200, timeout=3)
 
 alphabet = "abcdefghijklmnopqrstuvxyz" # might be useful as manual groups by letter. Note: sometimes letters missing in manual!
 
@@ -234,9 +234,6 @@ battery_wake_payload = {
     "unique_id": "scc_battery_wake",
     "command_topic": "home/scc/battery/wake",
     "device": device_info,
-    "availability_topic": availability_topic,
-    "payload_available": payload_available,
-    "payload_not_available": payload_not_available,
     "payload_press": "WAKE",
 }
 client.publish("homeassistant/button/scc_battery_wake/config", json.dumps(battery_wake_payload), retain=True)
